@@ -13,6 +13,7 @@ use Yii;
  * @property string|null $image_path
  * @property int|null $category_id
  * @property int $created_at
+ * @property int $date_parse
  * @property int $updated_at
  *
  * @property Category $category
@@ -34,7 +35,7 @@ class News extends \yii\db\ActiveRecord
     {
         return [
             [['description'], 'string'],
-            [['category_id', 'created_at', 'updated_at'], 'integer'],
+            [['category_id', 'created_at', 'updated_at', 'date_parse'], 'integer'],
             [['created_at', 'updated_at'], 'required'],
             [['title', 'image_path'], 'string', 'max' => 255],
             [['category_id'], 'exist', 'skipOnError' => true, 'targetClass' => Category::className(), 'targetAttribute' => ['category_id' => 'id']],
@@ -65,5 +66,15 @@ class News extends \yii\db\ActiveRecord
     public function getCategory()
     {
         return $this->hasOne(Category::className(), ['id' => 'category_id']);
+    }
+
+    /**
+     * get format date for news
+     */
+    public function getFullDateForNews()
+    {
+        $createdTime = date('y/m/d', $this->created_at);
+        $parseTime = $this->date_parse;
+        return $createdTime . ' ' . $parseTime;
     }
 }

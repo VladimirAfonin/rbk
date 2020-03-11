@@ -18,9 +18,6 @@ class ParseHelper
         $userAgent = file(self::DIR_NAME_WITH_FILES . DIRECTORY_SEPARATOR. self::USER_AGENT_FILENAME);
         $userAgentsCount = count($userAgent) - 1;
 
-//        var_dump($code = $userAgent[rand(0, $userAgentsCount)]);
-//        exit('exit');
-
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_USERAGENT, $code = $userAgent[rand(0, $userAgentsCount)]);

@@ -7,17 +7,20 @@ $this->title = 'My Yii Application';
 ?>
 <div class="site-index">
 
-    <div class="jumbotron">
-
-    </div>
-
     <div class="body-content">
 
                 <div class="row">
                     <div class="col-md-12">
                         <?php echo '<pre>';
-                        print_r($response);
+                        print_r($fullDataResult);
                         echo '</pre>'; ?>
+
+                        <hr>
+                        <?php foreach($fullDataResult as $item): ?>
+                            <h4><?= $item['title'] ?></h4>
+                            <img src="<?= $item['image'] ?>" alt="">
+                            <p><?= $item['fullText'] ?></p>
+                        <?php endforeach; ?>
         <!--                <h2>Heading</h2>-->
         <!---->
         <!--                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et-->

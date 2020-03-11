@@ -2,8 +2,12 @@
 namespace frontend\controllers;
 
 use frontend\helpers\ParseHelper;
+use frontend\models\News;
 use frontend\models\ResendVerificationEmailForm;
 use frontend\models\VerifyEmailForm;
+use frontend\repositories\CategoryRepository;
+use frontend\repositories\NewsRepository;
+use frontend\services\ParseService;
 use Yii;
 use yii\base\InvalidArgumentException;
 use yii\web\BadRequestHttpException;
@@ -17,15 +21,26 @@ use frontend\models\SignupForm;
 use frontend\models\ContactForm;
 
 ini_set('max_execution_time', 170);
-ini_set('memory_limit', '256M');
-set_time_limit(0);
-//phpinfo();
-//exit('exit');
 /**
  * Site controller
  */
 class SiteController extends Controller
 {
+    private $_parseService;
+
+    /**
+     * SiteController constructor.
+     * @param string $id
+     * @param $module
+     * @param ParseService $parseService
+     * @param array $config
+     */
+    public function __construct(string $id, $module, ParseService $parseService, array $config = [])
+    {
+        parent::__construct($id, $module, $config);
+        $this->_parseService = $parseService;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -90,55 +105,19 @@ class SiteController extends Controller
     {
         $response = ParseHelper::getRequestToUrl('rbk.ru');
         $htmlDom = ParseHelper::dom($response);
-        $shortResultArray = [];
+        $fullDataResult = $this->_parseService->getParsedData($htmlDom);
 
-        $links = $htmlDom->query('//div[@class="js-news-feed-list"]/a[@class="news-feed__item js-news-feed-item js-yandex-counter"]')->length;
-
-        for ($i = 0; $i <= $links - 1; $i++) {
-            $item = $htmlDom->query('//div[@class="js-news-feed-list"]/a[@class="news-feed__item js-news-feed-item js-yandex-counter"]')->item($i)->nodeValue ?? null;
-            $href = $htmlDom->query('//div[@class="js-news-feed-list"]/a[@class="news-feed__item js-news-feed-item js-yandex-counter"]/@href')->item($i)->nodeValue ?? null;
-            $title = $htmlDom->query('//div[@class="js-news-feed-list"]/a[@class="news-feed__item js-news-feed-item js-yandex-counter"]/span[contains(@class, "news-feed__item__title")]/text()')->item($i)->nodeValue ?? null;
-            $dateBlock = $htmlDom->query('//div[@class="js-news-feed-list"]/a[@class="news-feed__item js-news-feed-item js-yandex-counter"]/span[@class="news-feed__item__date"]/span[@class="news-feed__item__date-text"]/text()')->item($i)->nodeValue ?? null;
-            $additionalData = explode(',', trim($dateBlock));
-            $category = $additionalData[0] ?? 'нет данных';
-            $time = $additionalData[1] ?? 'нет данных';
-
-            $shortResultArray[$i] = [
-                'item' => trim($item),
-                'href' => trim($href),
-                'title' => trim($title),
-                'category' => trim($category),
-                'time' => trim($time)
-            ];
+        try {
+            CategoryRepository::createCategory($fullDataResult);
+            NewsRepository::createNews($fullDataResult);
+            \Yii::$app->session->setFlash('success', 'Успешный импорт данных в бд!');
+        } catch(\Exception $e) {
+            \Yii::$app->session->setFlash('error', 'Произошла ошибка при импорте данных в бд! Попробуйте снова.');
+            \Yii::$app->errorHandler->logException($e);
+            \Yii::$app->session->setFlash('error', $e->getMessage());
         }
 
-        $fullDataResult = [];
-        foreach($shortResultArray as $k => $item) {
-            $response = ParseHelper::getRequestToUrl($item['href']);
-            $htmlDom = ParseHelper::dom($response);
-
-            $title = $htmlDom->query('//h1[@class="js-slide-title"]/text()')->item(0)->nodeValue ?? null;
-            $image = $htmlDom->query('//div[@class="article__main-image__wrap"]/img/@src')->item(0)->nodeValue ?? null;
-            $subTitle = $htmlDom->query('//div[@class="article__subtitle"]/text()')->item(0)->nodeValue ?? null;
-            $fullTextsLength = $htmlDom->query('//div[@class="article__text article__text_free"]/p')->length ?? null;
-
-            $p = '';
-            for($i = 0; $i < $fullTextsLength - 1; $i++) {
-                $p .= $htmlDom->query('//div[@class="article__text article__text_free"]/p/text()')->item($i)->nodeValue ?? null;
-            }
-
-            $fullDataResult[$k] = [
-                'title' => trim($title),
-                'image' => trim($image),
-                'subTitle' => trim($subTitle),
-                'fullText' => trim($p),
-            ];
-
-        }
-
-        return $this->render('parse', [
-            'fullDataResult' => $fullDataResult
-        ]);
+        return $this->redirect('/site/news');
     }
 
     /**
@@ -207,6 +186,34 @@ class SiteController extends Controller
     public function actionAbout()
     {
         return $this->render('about');
+    }
+
+    /**
+     * @return string
+     */
+    public function actionNews()
+    {
+        $news = News::find()->all();
+
+        return $this->render('news', [
+            'news' => $news
+        ]);
+    }
+
+    /**
+     * @param bool $id
+     * @return string|\yii\web\Response
+     */
+    public function actionOne($id = false)
+    {
+        if(!$id || !$news = News::findOne($id)) {
+            \Yii::$app->session->setFlash('error', 'Не указана запись!');
+            return $this->redirect('/site/news');
+        }
+
+        return $this->render('one', [
+            'news' => $news
+        ]);
     }
 
     /**
